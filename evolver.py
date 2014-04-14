@@ -1,4 +1,6 @@
 import random
+import cpickle as pickle
+import os
 
 # This runs continuously, controlling the whole evolutionary process
 class evolutionary_process:
@@ -17,6 +19,11 @@ class evolutionary_process:
 
   def write_individual(self, indv, indv_id):
     """ Writes the information for an individual to a file indv_id.enc """
+    file_name = "indv_%d.enc" % (indv_id)
+    dir_path = os.path.join("trial%d" % (self.k), "gen%d" % (self.cur_gen))  # will return 'feed/address'
+    os.makedirs(dir_path)                             # create directory [current_path]/feed/address
+    output = open(os.path.join(dir_path, file_name), 'wb')
+    pickle.dump(indv, output)
     pass
 
   def read_individual(self, indv, indv_id):
