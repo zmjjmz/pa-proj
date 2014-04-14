@@ -24,6 +24,7 @@ class evolutionary_process:
     os.makedirs(dir_path)                             # create directory [current_path]/feed/address
     output = open(os.path.join(dir_path, file_name), 'wb')
     pickle.dump(indv, output)
+    output.close();
     pass
 
   def read_individual(self, indv, indv_id):
