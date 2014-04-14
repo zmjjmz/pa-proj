@@ -19,17 +19,20 @@ class evolutionary_process:
 
   def write_individual(self, indv, indv_id):
     """ Writes the information for an individual to a file indv_id.enc """
-    file_name = "indv_%d.enc" % (indv_id)
-    dir_path = os.path.join("trial%d" % (self.k), "gen%d" % (self.cur_gen))  # will return 'feed/address'
-    os.makedirs(dir_path)                             # create directory [current_path]/feed/address
-    output = open(os.path.join(dir_path, file_name), 'wb')
+    file_name = 'indv_%d.enc' % (indv_id)
+    dir_path = os.path.join('trial%d' % (self.k), 'gen%d' % (self.cur_gen))
+    os.makedirs(dir_path)                                  # create directory [current_path]/trialk/genn
+    output = open(os.path.join(dir_path, file_name), 'wb') # makes file file_name
+    
     pickle.dump(indv, output)
     output.close();
     pass
 
   def read_individual(self, indv, indv_id):
     """ Reads the information for an indivdial from the file indv_id.enc """
-    pass
+    pkl_file = open('indv_%d.enc' % (indv_id), 'rb')
+    indiv = pickle.load(pkl_file)
+    return indiv
 
   def copulate(self, best_indv):
     """ Given a list of best individuals, evolves them together through combination & mutation to produce a new population of pop_size """
