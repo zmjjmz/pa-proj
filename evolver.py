@@ -39,7 +39,7 @@ class evolutionary_process:
     """ Given a list of best individuals, evolves them together through combination & mutation to produce a new population of pop_size """
     pass
 
-  def dump(self, ):
+  def dump(self):
     """ In case anything goes wrong, dump everything to files """
     dump_file = open("trial%d/dump.pickle" % (self.trial_num))
     pickle.dump(self, dump_file)
