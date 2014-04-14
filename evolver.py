@@ -1,8 +1,9 @@
 import random
+import cPickle as pickle
 
 # This runs continuously, controlling the whole evolutionary process
 class evolutionary_process:
-  def __init__(self, pop_size, generations, generator, pop=None, k=2):
+  def __init__(self, pop_size, generations, generator, trial_num, pop=None, k=2):
     """ Takes population size, number of generations, and a function to generate individuals """
     self.pop_size = pop_size
     self.generations = generations
@@ -10,6 +11,7 @@ class evolutionary_process:
     self.k = k
     self.pop = [] if pop == None else pop
     self.generator = generator
+    self.trial_num = trial_num
 
   def generate_pop(self):
     """ Generates pop_size individuals, separate from __init__ to allow 'warm starting' """
@@ -27,9 +29,11 @@ class evolutionary_process:
     """ Given a list of best individuals, evolves them together through combination & mutation to produce a new population of pop_size """
     pass
 
-  def dump(self):
+  def dump(self, ):
     """ In case anything goes wrong, dump everything to files """
-    pass
+    dump_file = open("trial%d/dump.pickle" % trial_num)
+    pickle.dump(self, dump_file)
+    dump_file.close()
 
   def get_fitnesses(self, fitness_mode):
     """ Goes through every individual in the population and tests their fitness, storing information (i.e. individuals, results) in trial_num/cur_gen """
