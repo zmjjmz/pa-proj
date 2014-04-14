@@ -1,6 +1,7 @@
 import random
 import cpickle as pickle
 import os
+import glob
 
 # This runs continuously, controlling the whole evolutionary process
 class evolutionary_process:
@@ -16,7 +17,7 @@ class evolutionary_process:
 
   def generate_pop(self):
     """ Generates pop_size individuals, separate from __init__ to allow 'warm starting' """
-    self.pop = [generator() for i in range(self.pop)]
+    self.pop = [generator() for i in range(self.pop_size)]
 
   def write_individual(self, indv, indv_id):
     """ Writes the information for an individual to a file indv_id.enc """
@@ -27,7 +28,6 @@ class evolutionary_process:
     
     pickle.dump(indv, output)
     output.close();
-    pass
 
   def read_individual(self, indv, indv_id):
     """ Reads the information for an indivdial from the file indv_id.enc """
@@ -41,7 +41,7 @@ class evolutionary_process:
 
   def dump(self):
     """ In case anything goes wrong, dump everything to files """
-    dump_file = open("trial%d/dump.pickle" % (self.trial_num))
+    dump_file = open(os.path.join("trial%d" % (self.trial_num), "dump.pickle"), "wb")
     pickle.dump(self, dump_file)
     dump_file.close()
 
@@ -49,24 +49,26 @@ class evolutionary_process:
     """ Goes through every individual in the population and tests their fitness, storing information (i.e. individuals, results) in trial_num/cur_gen """
     pass
 
-  def run(self, trial_num):
+  def run(self):
     """ Runs through the whole process """
-    # Build in ability to recover
-    # Check if the trial folder exists, and if it does find the highest gen and restart it (from the previous one)
+    # Build in ability to recover    
+    try:
+      # Check if the trial folder exists, and if it does find the highest gen and restart it (from the previous one)
+      if os.path.isdir("trial%d" % (trial_num)):
+        # how to find highest gen? not sure if this is right - Ian
+        highest_gen = sorted(glob("trial%d/gen*/" % (trial_num)))[-1]
+        # Read in the population
+        for path in glob("%s*.enc" % (highest_gen)):
+          indv = pickle.load(path)
+          pop.append(indv)
+      # Otherwise start from the top, generate a population
+      else:
+        generate_pop()
 
-    # Read in the population
-
-    # Otherwise start from the top, generate a population
-
-    # Figure out the fitnesses of the population by spawning processes in a queue
-
-    # Read the fitnesses in once it's all done. Each individual will have their fitness in <ind>.fit, where the individual is stored in <ind>.enc
-
-    # Once this is done, find the best k individuals and have them copulate to produce the next generation
-
-    pass
-
-
-
-
-
+      # Figure out the fitnesses of the population by spawning processes in a queue
+      get_fitnesses("max_distance")
+      # Read the fitnesses in once it's all done. Each individual will have their fitness in <ind>.fit, where the individual is stored in <ind>.enc
+      
+      # Once this is done, find the best k individuals and have them copulate to produce the next generation
+    finally:
+      dump()
