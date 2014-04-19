@@ -5,10 +5,12 @@ import glob
 import sys
 import math
 
+
 # This runs continuously, controlling the whole evolutionary process
 class evolutionary_process:
-  def __init__(self, pop_size, generations, generator, pop=None, k=2):
+  def __init__(self, pop_size, generations, factory, pop=None, k=2):
     """ Takes population size, number of generations, and a function to generate individuals """
+    self.factory = factory # used to make the individuals randomly
     self.pop_size = pop_size
     self.generations = generations
     self.cur_gen = 0
@@ -18,7 +20,7 @@ class evolutionary_process:
 
   def generate_pop(self):
     """ Generates pop_size individuals, separate from __init__ to allow 'warm starting' """
-    self.pop = {i:generator() for i in range(self.pop_size)}
+    self.pop = {i:self.factory.make(i) for i in range(self.pop_size)}
 
   def write_individual(self, indv, indv_id):
     """ Writes the information for an individual to a file indv_id.enc """
@@ -40,6 +42,7 @@ class evolutionary_process:
 
   def copulate(self, best_indv):
     """ Given a list of best individuals, evolves them together through combination & mutation to produce a new population of pop_size """
+    # We'll use factory.mix(best_indv, ident) for ident in range(pop), with mutation probabilities and crossover probabilities set at init
     pass
 
   def dump(self):
