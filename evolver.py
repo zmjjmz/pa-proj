@@ -6,18 +6,18 @@ import glob
 import sys
 import math
 import multiprocessing
+from cpg import CPGFactory
 
 
 # This runs continuously, controlling the whole evolutionary process
 class evolutionary_process:
-  def __init__(self, pop_size, generations, factory, pop=None, k=2, mutation_prob=0.5, crossover_prob=[0.5,0.5]):
+  def __init__(self, pop_size, factory, pop=None, k=2, mutation_prob=0.5, crossover_prob=[0.5,0.5]):
     """ Takes population size, number of generations, and a function to generate individuals """
     self.factory = factory # used to make the individuals randomly
     self.pop_size = pop_size
     self.cpus = multiprocessing.cpu_count()
     # specifies which indv_ids each process should run on
     self.proc_bounds = [(i,(i+int(self.pop_size/self.cpus))-1) if i != self.cpus else (i,(i+self.pop_size)) for i in range(0,self.pop_size,int(self.pop_size/self.cpus))]
-    self.generations = generations
     self.cur_gen = 0
     self.k = k
     self.pop = [] if pop == None else pop
@@ -135,4 +135,15 @@ class evolutionary_process:
       error = sys.exc_info()[0]
       print("Trial %d: Caught error %s on generation %d, dumping to %s/trial%d/dump.pickle" % (self.trial_num, error, self.cur_gen, os.path.abspath('.'), self.trial_num))
       self.dump()
+
+
+if __name__ == "__main__":
+  cpgfact = CPGFactory(3)
+  # for now we're gonna leave the population at 3
+  evlvr = evolutionary_process(10, cpgfact)
+  # for now we're gonna go with trial set to 1, 10 generations
+  evlvr.start(1, 10)
+
+
+
 

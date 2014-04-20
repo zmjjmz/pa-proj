@@ -1,4 +1,5 @@
 import numpy as np
+import bisect
 
 class CPGFactory:
   def __init__(self, n): # this is equivalent to starting a random one
@@ -17,6 +18,21 @@ class CPGFactory:
     self.osc_class = [0 if i < n_body else 1 for i in range(self.n)] # 0 for body oscillator, 1 for limb oscillator
     # list of keys that can be mutated during evolution
     self.evolvables = ['w', 'phi', 'a', 'gsl', 'gsh', 'gb1', 'gb2', 'theta', 'ampl', 'ampl_dot']
+    self.scalars = set(['gsl', 'gsh', 'gb1', 'gb2'])
+    self.shapes = {'w':(n,n),
+        'phi':(n,n),
+        'a':n,
+        'theta':n,
+        'ampl':n,
+        'ampl_dot':n}
+    self.sizes = {'w':n*n,
+        'phi':n*n,
+        'a':n,
+        'theta':n,
+        'ampl':n,
+        'ampl_dot':n}
+
+
 
   def make(self, ident):
     """ Randomly generates the parameters for a CPG """
@@ -55,8 +71,26 @@ class CPGFactory:
 
     return CPG
 
+  def cumulative_sum(lis):
+    """ Because you can't refer to the current list in a list comprehension """
+    new_list = []
+    for i in range(len(lis)):
+      if i == 0:
+        new_list.append(lis[i])
+      else:
+        new_list.append(new_list[i-1] + lis[i])
+    return new_list
+
+  def safe_rand():
+    """ Gets a random number, but makes sure it's not 1 """
+    rand_n = np.random.rand()
+    if rand_n == float(1):
+      rand_n -= 1e-10
+    return rand_n
+
   def mix(self, cpgs, ident, method='avg', mutation_prob=0.5, crossover_prob=[0.5, 0.5]):
-    """ Takes a list of cpgs and mixes them into one """
+    """ Takes a list of cpgs (sorted from lowest fitness to highest) and mixes them into one.
+    Note that crossover_prob is assumed to be sorted from lowest to highest and must sum to 1 """
     # Available methods:
     # note that mutation means selecting a new random scalar for a particular value
     # avg -- takes the average of all of the keys in self.evolvables and then goes through all of their values and chooses whether or not to mutate them by mutation_prob
@@ -69,20 +103,36 @@ class CPGFactory:
     new_CPG = dict()
     new_CPG['ident'] = ident
     new_CPG = self._set_constants(new_CPG)
-    cfd =
 
     if method == 'avg':
       for key in self.evolvables:
         avg_params = sum([cpg[key] for cpg in cpgs]) / n_cpgs
         new_CPG[key] = avg_params
 
-    return new_CPG
-"""
     if method == 'crossover':
-      # Pad crossover_prob
-      if len(crossover_prob) < len(cpgs):
-        # assume the cpgs
+      # assume the current crossover_prob apply to cpgs[:len(crossover_prob)]
+      # anything past that can be thrown out
+      cpgs = cpgs[len(cpgs) - len(crossover_prob):]
+      cdf = cumulative_sum(crossover_prob)
+      choose_cpg = lambda rand: cpgs[bisect.bisect(cdf, rand)] # bisect will return the index of the value to the right of the given number in the sorted list
+      # Now go through the keys
+      for key in self.evolvables:
+        if key in self.scalars:
+          # then we'll just choose the cpg
+          new_CPG[key] = choose_cpg(safe_rand())[key]
+        else:
+          new_CPG[key] = np.zeros(self.shapes[key])
+          for param in range(self.sizes[key]):
+            new_CPG[key].flat[param] = choose_cpg(safe_rand())[key].flat[param]
 
-      s_cpgs = [i[1] for i in sorted(enumerate(cpgs), key=lambda x: crossover_prob[x[0]])]
-"""
-
+    # mutate step
+    for key in self.evolvable:
+      if key in self.scalars:
+        if np.random.rand <= mutation_prob:
+          new_CPG[key] = new_CPG[key] * np.random.rand()
+      else:
+        for param in range(self.sizes[key]):
+          if np.random.rand() <= mutation_prob:
+            new_CPG[key].flat[param] = new_CPG[key].flat[param] * np.random.rand()
+    # That's all folks!
+    return new_CPG
