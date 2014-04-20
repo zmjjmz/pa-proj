@@ -20,8 +20,8 @@ public class CentralControl : MonoBehaviour {
     private float[] cv0, cv1, cR0, cR1;
     // ( (dbody_low, dbody_high), (dlimb_low, dlimb_high) )
     private int[,] d_params;
-	
-	// Probably don't even need a constructor with json deserialization?
+    
+    // Probably don't even need a constructor with json deserialization?
     public CPG(int n, float[] a, float[] theta, float[] ampl, float[] ampl_dot, 
                int[] osc_class, float[,] w, float[,] phi, float[] gsl, 
                float[] gsh, float[] gb1, float[] gb2){
@@ -160,14 +160,14 @@ public class CentralControl : MonoBehaviour {
     gen = 0;
     firstIndv = 0;
     lastIndv = 1;
-	partition = 0;
-	currentIndv = firstIndv;
-	currentStep = 0;
-	simulationLength = 200;
-	fitnesses = new Dictionary<int, float>();
-	initialPosition = transform.position;
+    partition = 0;
+    currentIndv = firstIndv;
+    currentStep = 0;
+    simulationLength = 200;
+    fitnesses = new Dictionary<int, float>();
+    initialPosition = transform.position;
     // Initialize the simulation
-	beginTrial();
+    beginTrial();
     
     // Some segments have only one joint
     joints[0] = GameObject.Find("2").GetComponent<HingeJoint>();
@@ -207,8 +207,8 @@ public class CentralControl : MonoBehaviour {
   // This function is called every .2 seconds of simulation, and is where motor 
   // changes will happen
   void FixedUpdate(){
-	++currentStep;
-	float stepTime = Time.deltaTime;
+    ++currentStep;
+    float stepTime = Time.deltaTime;
     float desiredAngle;
     float alpha = 0.5f;
     // Body joints
@@ -232,33 +232,33 @@ public class CentralControl : MonoBehaviour {
       m.targetVelocity = (desiredAngle - joints[i].angle) / stepTime;
       joints[i].motor = m;
     }
-	if(currentStep == simulationLength){
-	  endTrial();
-	}
+    if(currentStep == simulationLength){
+      endTrial();
+    }
   }
 
   void beginTrial(){
     string path = System.Environment.GetEnvironmentVariable("foo");
     path += "trial" + trial + Path.DirectorySeparatorChar + "gen" + gen 
       + Path.DirectorySeparatorChar + "indv_" + currentIndv + ".enc";
-	Debug.Log (path);
+    Debug.Log (path);
     salamander = JsonConvert.DeserializeObject<CPG>(File.ReadAllText(path));
   }
 
   void endTrial(){
-	fitness = Vector3.Distance(initialPosition, transform.position);
-	fitnesses[currentIndv] = fitness;
-	// Conclude business by writing the fitnesses to json
-	if(currentIndv == lastIndv){
-	  string path = System.Environment.GetEnvironmentVariable("foo");
-	  path += "trial" + trial + Path.DirectorySeparatorChar + "gen" + gen 
-		+ Path.DirectorySeparatorChar + "partition" + partition + ".fit";
-	  string json = JsonConvert.SerializeObject(fitnesses, Formatting.Indented);
-	  File.WriteAllText(path, json);
-	  Application.Quit();
-	}
-	currentIndv++;
-	// Otherwise, have another go with the next individual
-	Application.LoadLevel(Application.loadedLevel);
+    fitness = Vector3.Distance(initialPosition, transform.position);
+    fitnesses[currentIndv] = fitness;
+    // Conclude business by writing the fitnesses to json
+    if(currentIndv == lastIndv){
+      string path = System.Environment.GetEnvironmentVariable("foo");
+      path += "trial" + trial + Path.DirectorySeparatorChar + "gen" + gen 
+        + Path.DirectorySeparatorChar + "partition" + partition + ".fit";
+      string json = JsonConvert.SerializeObject(fitnesses, Formatting.Indented);
+      File.WriteAllText(path, json);
+      Application.Quit();
+    }
+    currentIndv++;
+    // Otherwise, have another go with the next individual
+    Application.LoadLevel(Application.loadedLevel);
   }
 }
