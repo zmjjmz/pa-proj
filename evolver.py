@@ -1,17 +1,22 @@
 import random
 import pickle
+import json
 import os
 import glob
 import sys
 import math
+import multiprocessing
 
 
 # This runs continuously, controlling the whole evolutionary process
 class evolutionary_process:
-  def __init__(self, pop_size, generations, factory, pop=None, k=2):
+  def __init__(self, pop_size, generations, factory, pop=None, k=2, mutation_prob=0.5, crossover_prob=[0.5,0.5]):
     """ Takes population size, number of generations, and a function to generate individuals """
     self.factory = factory # used to make the individuals randomly
     self.pop_size = pop_size
+    self.cpus = multiprocessing.cpu_count()
+    # specifies which indv_ids each process should run on
+    self.proc_bounds = [(i,(i+int(self.pop_size/self.cpus))-1) if i != self.cpus else (i,(i+self.pop_size)) for i in range(0,self.pop_size,int(self.pop_size/self.cpus))]
     self.generations = generations
     self.cur_gen = 0
     self.k = k
@@ -22,28 +27,26 @@ class evolutionary_process:
     """ Generates pop_size individuals, separate from __init__ to allow 'warm starting' """
     self.pop = {i:self.factory.make(i) for i in range(self.pop_size)}
 
-  def write_individual(self, indv, indv_id):
+  def write_individual(self, indv):
     """ Writes the information for an individual to a file indv_id.enc """
+    indv_id = indv['ident']
     file_name = 'indv_%d.enc' % (indv_id)
     dir_path = os.path.join('trial%d' % (self.trial_num), 'gen%d' % (self.cur_gen))
     if not os.path.exists(dir_path):
       os.makedirs(dir_path)                                  # create directory [current_path]/trialk/genn
     output = open(os.path.join(dir_path, file_name), 'wb') # makes file file_name
-
-    pickle.dump(indv, output)
-    output.close();
-
-  def read_individual(self, indv, indv_id):
-    """ Reads the information for an indivdial from the file indv_id.enc """
-    dir_path = os.path.join('trial%d' % (self.trial_num), 'gen%d' % (self.cur_gen))
-    pkl_file = open(os.path.join(dir_path, 'indv_%d.enc' % (indv_id)), 'rb')
-    indiv = pickle.load(pkl_file)
-    return indiv
+    json.dump(indv, output)
+    output.close()
 
   def copulate(self, best_indv):
     """ Given a list of best individuals, evolves them together through combination & mutation to produce a new population of pop_size """
     # We'll use factory.mix(best_indv, ident) for ident in range(pop), with mutation probabilities and crossover probabilities set at init
-    pass
+    new_pop = {}
+    for indv_id in range(self.pop_size):
+      new_pop[indv_id] = self.factory.mix(best_indv, indv_id)
+
+    self.pop = new_pop
+
 
   def dump(self):
     """ In case anything goes wrong, dump everything to files """
@@ -53,33 +56,31 @@ class evolutionary_process:
 
   def read_fitnesses(self):
     """ Goes through all of the {indv_id}.fit in trial/gen/ and reads them into a dict of {indv_id:fit} """
-    fitness_files = glob.glob("trial%d/gen%d/*.fit" % (self.trial_num, self.cur_gen))
-    fitness_dict = {}
-    for fitness_file in fitness_files:
+    #fitness_files = glob.glob("trial%d/gen%d/*.fit" % (self.trial_num, self.cur_gen))
+    # we're going to have all of them in one JSON file for now
+    fitness_dict = dict()
+    for i in range(self.cpus):
+      fitness_file = "trial%d/gen%d/total%d.fit" % (self.trial_num, self.cur_gen, i)
       with open(fitness_file, 'r') as fo: # it's good practice to use the with keyword -- it handles closing the file object for you
-        fitness = float(fo.read())
-      indv_id = int(fitness_file.split('/')[-1].split('.')[-1])
-      fitness_dict[indv_id] = fitness
-
+        fitness_dict.update(json.load(fo))
     return fitness_dict
-
-
-
 
   def get_fitnesses(self, fitness_mode):
     """ Goes through every individual in the population and tests their fitness, storing information (i.e. individuals, results) in trial_num/cur_gen """
     # So for every individual in the population, we go through and add the call to Unity to the multiprocessing queue
+
 
     # Read the fitnesses in once it's all done. Each individual will have their fitness in <ind>.fit, where the individual is stored in <ind>.enc
     return self.read_fitnesses()
 
   def run(self, n_generations):
     """ Runs the evolutionary procedure for n_generations """
-    while(self.cur_gen <= self.n_generations)
-      for indv_id, indv in self.pop.items():
-        self.write_individual(self, indv, indv_id)
+    while(self.cur_gen <= self.n_generations):
+      for indv in self.pop.values():
+        self.write_individual(indv)
       self.fitnesses = self.get_fitnesses()
-      best_indv = sorted(fitness_dict.values(), key=lambda x: -x[1])[:self.k]
+      best_indv_ids = sorted(fitness_dict.keys(), key=lambda x: -fitness_dict[x])[:self.k]
+      best_indv = [self.pop[indv_id] for indv_id in best_indv_ids]
       self.copulate(best_indv)
       self.cur_gen += 1
 
@@ -102,11 +103,14 @@ class evolutionary_process:
         self.cur_gen = highest_gen - 1
         # Read in the population
         for path in glob.glob("trial%d/gen%s/*.enc" % (self.trial_num, highest_gen)):
-          indv = pickle.load(path)
-          self.pop.append(indv)
+          with open(path, 'rb') as fo: # easier than getting the id for read_individual from the file path
+            indv = json.load(fo)
+          self.pop[indv['ident']] = indv
         # This is essentially the second part of the run() function
         self.fitnesses = self.read_fitnesses()
-        best_indv = sorted(fitness_dict.values(), key=lambda x: -x[1])[:self.k]
+        best_indv_ids = sorted(fitness_dict.keys(), key=lambda x: -fitness_dict[x])[:self.k]
+
+        best_indv = [self.pop[indv_id] for indv_id in best_indv_ids]
 
         self.copulate(best_indv)
         self.cur_gen += 1
@@ -121,13 +125,13 @@ class evolutionary_process:
         fitness_dict = self.get_fitnesses("max_distance")
         # Move this into using the SortedCollections recipe http://code.activestate.com/recipes/577197-sortedcollection/
         # if it proves to be too slow. Probably won't be an issue
-        best_indv = sorted(fitness_dict.values(), key=lambda x: -x[1])[:self.k]
+        best_indv_ids = sorted(fitness_dict.keys(), key=lambda x: -fitness_dict[x])[:self.k]
+        best_indv = [self.pop[indv_id] for indv_id in best_indv_ids]
 
         self.copulate(best_indv)
 
     except:
       error = sys.exc_info()[0]
-      print("Trial %d: Caught error %s on generation %d, dumping to %s/trial%d/dump.pickle" % (self.trial_num, error, self.cur_gen, os.path.abspath('.'), self.trial_num)
-    finally:
+      print("Trial %d: Caught error %s on generation %d, dumping to %s/trial%d/dump.pickle" % (self.trial_num, error, self.cur_gen, os.path.abspath('.'), self.trial_num))
       self.dump()
 
