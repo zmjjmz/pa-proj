@@ -68,8 +68,9 @@ class evolutionary_process:
   def get_fitnesses(self, fitness_mode):
     """ Goes through every individual in the population and tests their fitness, storing information (i.e. individuals, results) in trial_num/cur_gen """
     # So for every individual in the population, we go through and add the call to Unity to the multiprocessing queue
-
-
+    commands = ['python dickaround.py %d %d %d %d %d' (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
+    unities = multiprocessing.Pool(self.cpus)
+    unities.map(os.system, commands)
     # Read the fitnesses in once it's all done. Each individual will have their fitness in <ind>.fit, where the individual is stored in <ind>.enc
     return self.read_fitnesses()
 
