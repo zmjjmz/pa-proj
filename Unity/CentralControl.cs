@@ -1,11 +1,14 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using Newtonsoft.Json;
+
 
 public class CentralControl : MonoBehaviour {
   public class CPG{
     // All angular values are in radians
-    private int n;
+    private int n, indv_id;
     private float[] a, theta, ampl, ampl_dot, signal;
     // Evolved values for the limb setpoint function
     private float[] gsl, gsh, gb1, gb2;
@@ -17,7 +20,8 @@ public class CentralControl : MonoBehaviour {
     private float[] cv0, cv1, cR0, cR1;
     // ( (dbody_low, dbody_high), (dlimb_low, dlimb_high) )
     private int[,] d_params;
-
+	
+	// Probably don't even need a constructor with json deserialization?
     public CPG(int n, float[] a, float[] theta, float[] ampl, float[] ampl_dot, 
                int[] osc_class, float[,] w, float[,] phi, float[] gsl, 
                float[] gsh, float[] gb1, float[] gb2){
@@ -128,22 +132,42 @@ public class CentralControl : MonoBehaviour {
   // 16 body oscillators (12 of which map to 6 joints) and 4 limb 
   // oscillators, each of which maps to a limb
   public CPG salamander;
+  public int trial, gen, firstIndv, lastIndv, partition;
+  // We need this to be preserved through level loads, so static
+  public static int currentIndv;
+  // Length of trial in number of timesteps (.2s)
+  public int currentStep, simulationLength;
+  public float fitness;
+  public static Dictionary<int, float> fitnesses;
+  // The initial position of the head of the salamander to calculate fitness
+  public Vector3 initialPosition;
 
   // used for the placeholder drivers
   public System.Random rand = new System.Random();
 
-  // Initialization of variables
+  // Initialization of variables, should be called every time the level is loaded (i.e. resetting), I hope
   void Start () {
-    int n = 20;
-    int gen = 0;
-    // Initialize the whole CPG structure
-    float[] a, theta, ampl, ampl_dot, gsl, gsh, gb1, gb2;
-    int[] osc_class;
-    float[,] w, phi;
-    getParams(n, out a, out theta, out ampl, out ampl_dot, out osc_class, 
-              out w, out phi, out gsl, out gsh, out gb1, out gb2);
-    salamander = new CPG(n, a, theta, ampl, ampl_dot, osc_class, w, phi, gsl, 
-                         gsh, gb1, gb2);
+    // Application.persistentDataPath is a folder that should be used to store 
+    // things (individuals!)
+    // System.Environment.GetCommandLineArgs() is how we're getting args
+    /*Debug.Log(Application.persistentDataPath);
+    string[] args = System.Environment.GetCommandLineArgs();
+    for(int i = 0; i < args.Length; i++){
+      Debug.Log(args[i]);
+    }*/
+    // We would normally read these values in from command line argmuents
+    trial = 0;
+    gen = 0;
+    firstIndv = 0;
+    lastIndv = 1;
+	partition = 0;
+	currentIndv = firstIndv;
+	currentStep = 0;
+	simulationLength = 200;
+	fitnesses = new Dictionary<int, float>();
+	initialPosition = transform.position;
+    // Initialize the simulation
+	beginTrial();
     
     // Some segments have only one joint
     joints[0] = GameObject.Find("2").GetComponent<HingeJoint>();
@@ -183,9 +207,8 @@ public class CentralControl : MonoBehaviour {
   // This function is called every .2 seconds of simulation, and is where motor 
   // changes will happen
   void FixedUpdate(){
-    // We aren't actually using time yet . . .
-    float time = Time.fixedTime;
-    float stepTime = Time.deltaTime;
+	++currentStep;
+	float stepTime = Time.deltaTime;
     float desiredAngle;
     float alpha = 0.5f;
     // Body joints
@@ -209,32 +232,33 @@ public class CentralControl : MonoBehaviour {
       m.targetVelocity = (desiredAngle - joints[i].angle) / stepTime;
       joints[i].motor = m;
     }
+	if(currentStep == simulationLength){
+	  endTrial();
+	}
   }
 
-  void getParams(int n, out float[] a, out float[] theta, out float[] ampl, 
-                 out float[] ampl_dot, out int[] osc_class, out float[,] w, 
-                 out float[,] phi, out float[] gsl, out float[] gsh, 
-                 out float[] gb1, out float[] gb2){
-    
-    a = new float[n]; 
-    theta = new float[n]; 
-    ampl = new float[n]; 
-    ampl_dot = new float[n];
-    osc_class = new int[n];
-    w = new float[n,n]; 
-    phi = new float[n,n];
-    gsl = new float[n];
-    gsh = new float[n];
-    gb1 = new float[n];
-    gb2 = new float[n];
-    // Set up intrinsic value: osc_class
-    for(int i = 0; i < 16; i ++){
-      osc_class[i] = 0;
-    }
-    for(int i = 16; i < 20; i++){
-      osc_class[i] = 1;
-    }
-    
-    // Read in gen values: a, theta, ampl, ampl_dot, w, phi, G
+  void beginTrial(){
+    string path = System.Environment.GetEnvironmentVariable("foo");
+    path += "trial" + trial + Path.DirectorySeparatorChar + "gen" + gen 
+      + Path.DirectorySeparatorChar + "indv_" + currentIndv + ".enc";
+	Debug.Log (path);
+    salamander = JsonConvert.DeserializeObject<CPG>(File.ReadAllText(path));
+  }
+
+  void endTrial(){
+	fitness = Vector3.Distance(initialPosition, transform.position);
+	fitnesses[currentIndv] = fitness;
+	// Conclude business by writing the fitnesses to json
+	if(currentIndv == lastIndv){
+	  string path = System.Environment.GetEnvironmentVariable("foo");
+	  path += "trial" + trial + Path.DirectorySeparatorChar + "gen" + gen 
+		+ Path.DirectorySeparatorChar + "partition" + partition + ".fit";
+	  string json = JsonConvert.SerializeObject(fitnesses, Formatting.Indented);
+	  File.WriteAllText(path, json);
+	  Application.Quit();
+	}
+	currentIndv++;
+	// Otherwise, have another go with the next individual
+	Application.LoadLevel(Application.loadedLevel);
   }
 }
