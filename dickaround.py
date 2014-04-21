@@ -22,12 +22,15 @@ if __name__ == "__main__":
     # 'process' the cpg by summing all of the parameters
     param_total = 0
     for i in cpg:
+      if i == 'ident':
+        continue
       param_total += np.sum(cpg[i])
 
-    fitness_dict[str(cpg_id)] = param_total
+    str_cpg_id = cpg['ident']
+
+    fitness_dict[str_cpg_id] = param_total
 
   # now write the fitness_dict to path_base/total{partition_num}.fit
-  print(fitness_dict)
   write_path = os.path.join(path_base,'total%d.fit' % partition_num)
   with open(write_path, 'w') as fit_out:
     json.dump(fitness_dict, fit_out)

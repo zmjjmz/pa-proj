@@ -35,7 +35,7 @@ class CPGFactory:
   def deserialize(self, indv):
     """ Converts things back into numpy """
     for key in indv:
-      if key in self.evolvables and not in self.scalars:
+      if key in self.evolvables and not key in self.scalars:
         if not isinstance(indv[key], np.ndarray):
           indv[key] = np.array(indv[key])
 
@@ -46,7 +46,7 @@ class CPGFactory:
   def make(self, ident):
     """ Randomly generates the parameters for a CPG """
     CPG = dict()
-    CPG['ident'] = ident
+    CPG['ident'] = str(ident)
     # will not be updated during simulation
     CPG['w'] = np.random.rand(self.n, self.n) # (n,n)
     CPG['phi'] = np.random.rand(self.n, self.n) # (n,n)
@@ -107,10 +107,11 @@ class CPGFactory:
     # defaults to choosing from the first two cpgs with equal probability
 
     n_cpgs = float(len(cpgs))
+    print("Mixing CPGs: %r" % [cpg['ident'] for cpg in cpgs])
 
 
     new_CPG = dict()
-    new_CPG['ident'] = ident
+    new_CPG['ident'] = str(ident)
     new_CPG = self._set_constants(new_CPG)
 
     if method == 'avg':
@@ -139,9 +140,9 @@ class CPGFactory:
             new_CPG[key].flat[param] = choose_cpg(safe_rand())[key].flat[param]
 
     # mutate step
-    for key in self.evolvable:
+    for key in self.evolvables:
       if key in self.scalars:
-        if np.random.rand <= mutation_prob:
+        if np.random.rand() <= mutation_prob:
           new_CPG[key] = new_CPG[key] * np.random.rand()
       else:
         for param in range(self.sizes[key]):
