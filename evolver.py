@@ -17,7 +17,7 @@ class evolutionary_process:
     self.pop_size = pop_size
     self.cpus = multiprocessing.cpu_count()
     # specifies which indv_ids each process should run on
-    self.proc_bounds = [(i,(i+int(self.pop_size/self.cpus))-1) if i != self.cpus else (i,(i+self.pop_size)) for i in range(0,self.pop_size,int(self.pop_size/self.cpus))]
+    self.proc_bounds = [(i,(i+int(self.pop_size/self.cpus))) if i != self.cpus else (i,(i+self.pop_size)) for i in range(0,self.pop_size,int(self.pop_size/self.cpus))]
     self.cur_gen = 0
     self.k = k
     self.pop = [] if pop == None else pop
@@ -25,17 +25,17 @@ class evolutionary_process:
 
   def generate_pop(self):
     """ Generates pop_size individuals, separate from __init__ to allow 'warm starting' """
-    self.pop = {i:self.factory.make(i) for i in range(self.pop_size)}
+    self.pop = {str(i):self.factory.make(i) for i in range(self.pop_size)}
 
   def write_individual(self, indv):
     """ Writes the information for an individual to a file indv_id.enc """
     indv_id = indv['ident']
-    file_name = 'indv_%d.enc' % (indv_id)
+    file_name = 'indv_%s.enc' % (indv_id)
     dir_path = os.path.join('trial%d' % (self.trial_num), 'gen%d' % (self.cur_gen))
     if not os.path.exists(dir_path):
       os.makedirs(dir_path)                                  # create directory [current_path]/trialk/genn
-    output = open(os.path.join(dir_path, file_name), 'wb') # makes file file_name
-    json.dump(indv, output)
+    output = open(os.path.join(dir_path, file_name), 'w') # makes file file_name
+    json.dump(indv, output, default=list) # hack to get numpy arrays in there
     output.close()
 
   def copulate(self, best_indv):
@@ -105,7 +105,7 @@ class evolutionary_process:
         # Read in the population
         for path in glob.glob("trial%d/gen%s/*.enc" % (self.trial_num, highest_gen)):
           with open(path, 'rb') as fo: # easier than getting the id for read_individual from the file path
-            indv = json.load(fo)
+            indv = self.factory.deserialize(json.load(fo))
           self.pop[indv['ident']] = indv
         # This is essentially the second part of the run() function
         self.fitnesses = self.read_fitnesses()

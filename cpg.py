@@ -14,7 +14,7 @@ class CPGFactory:
     #[[dbodylow,dbodyhigh],[dlimblow,dlimbhigh]]
     self.d_params = [[1,5],[1,3]]
     # which oscillators are limb oscillators and which ones are body oscillators is pretty constant
-    n_body = 16
+    n_body = n - 4
     self.osc_class = [0 if i < n_body else 1 for i in range(self.n)] # 0 for body oscillator, 1 for limb oscillator
     # list of keys that can be mutated during evolution
     self.evolvables = ['w', 'phi', 'a', 'gsl', 'gsh', 'gb1', 'gb2', 'theta', 'ampl', 'ampl_dot']
@@ -31,6 +31,15 @@ class CPGFactory:
         'theta':n,
         'ampl':n,
         'ampl_dot':n}
+
+  def deserialize(self, indv):
+    """ Converts things back into numpy """
+    for key in indv:
+      if key in self.evolvables and not in self.scalars:
+        if not isinstance(indv[key], np.ndarray):
+          indv[key] = np.array(indv[key])
+
+    return indv
 
 
 
@@ -123,6 +132,10 @@ class CPGFactory:
         else:
           new_CPG[key] = np.zeros(self.shapes[key])
           for param in range(self.sizes[key]):
+            # Since CPGs that are read in don't have their lists in numpy.ndarray form
+            this_cpg = choose_cpg(safe_rand())
+            if not isinstance(this_cpg[key], np.ndarray):
+              this_cpg[key] = np.array(this_cpg[key])
             new_CPG[key].flat[param] = choose_cpg(safe_rand())[key].flat[param]
 
     # mutate step
@@ -136,3 +149,5 @@ class CPGFactory:
             new_CPG[key].flat[param] = new_CPG[key].flat[param] * np.random.rand()
     # That's all folks!
     return new_CPG
+
+
