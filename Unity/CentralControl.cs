@@ -79,7 +79,7 @@ public class CentralControl : MonoBehaviour {
       float[] ampl_dot_dot = new float[n];
       float[] new_ampl_dot = new float[n];
       for(int i = 0; i < n; i++){
-        ampl_dot_dot[i] = a[i] * (a[i]/4.0f * (R[i] - ampl[i] - ampl_dot[i]));
+        ampl_dot_dot[i] = a[i] * (a[i]/4.0f * (R[i] - ampl[i]) - ampl_dot[i]);
         new_ampl_dot[i] = ampl_dot[i] + ampl_dot_dot[i];
       }
       return new_ampl_dot;
