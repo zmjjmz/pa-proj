@@ -18,7 +18,7 @@ class evolutionary_process:
     self.pop_size = pop_size
     self.cpus = multiprocessing.cpu_count()
     # specifies which indv_ids each process should run on
-    self.proc_bounds = [(i,(i+int(self.pop_size/self.cpus))) if i != self.cpus else (i,(i+self.pop_size)) for i in range(0,self.pop_size,int(self.pop_size/self.cpus))]
+    self.proc_bounds = [(i,(i+int(self.pop_size/self.cpus))) if ind < (self.cpus-1) else (i,self.pop_size) for ind, i in enumerate(range(0,self.pop_size,int(self.pop_size/self.cpus)))][:self.cpus]
     self.cur_gen = 0
     self.k = k
     self.pop = {} if pop == None else pop
@@ -68,6 +68,7 @@ class evolutionary_process:
   def get_fitnesses(self, fitness_mode='max speed'):
     """ Goes through every individual in the population and tests their fitness, storing information (i.e. individuals, results) in trial_num/cur_gen """
     # So for every individual in the population, we go through and add the call to Unity to the multiprocessing queue
+    print("Generation %d: Evaluating fitnesses" % self.cur_gen)
     commands = ['python dickaround.py %d %d %d %d %d' % (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
     unities = multiprocessing.Pool(self.cpus)
     unities.map(os.system, commands)
@@ -76,6 +77,7 @@ class evolutionary_process:
 
   def run(self, n_generations):
     """ Runs the evolutionary procedure for n_generations """
+    print("Running for %d generations from generation %d" % (n_generations - self.cur_gen, self.cur_gen))
     while(self.cur_gen < n_generations):
       for indv in self.pop.values():
         self.write_individual(indv)
@@ -113,8 +115,9 @@ class evolutionary_process:
         best_indv = [self.pop[indv_id] for indv_id in best_indv_ids]
 
         self.copulate(best_indv)
+
         self.cur_gen += 1
-        self.run(n_generations - highest_gen)
+        self.run(n_generations)
       else:
         # Otherwise start from the top, generate a population
         self.generate_pop()

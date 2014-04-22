@@ -107,7 +107,6 @@ class CPGFactory:
     # defaults to choosing from the first two cpgs with equal probability
 
     n_cpgs = float(len(cpgs))
-    print("Mixing CPGs: %r" % [cpg['ident'] for cpg in cpgs])
 
 
     new_CPG = dict()
