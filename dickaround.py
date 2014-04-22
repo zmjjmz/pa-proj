@@ -4,7 +4,6 @@ import os
 from numpy import sum
 import json
 
-@profile
 def doit():
   trial_num = int(sys.argv[1])
   gen_num = int(sys.argv[2])

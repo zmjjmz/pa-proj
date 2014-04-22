@@ -25,7 +25,6 @@ class evolutionary_process:
     self.k = k
     self.pop = {} if pop == None else pop
 
-  @profile
   def generate_pop(self):
     """ Generates pop_size individuals, separate from __init__ to allow 'warm starting' """
     self.pop = {str(i):self.factory.make(i) for i in range(self.pop_size)}
@@ -41,7 +40,6 @@ class evolutionary_process:
     json.dump(indv, output, default=list) # hack to get numpy arrays in there
     output.close()
 
-  @profile
   def copulate(self, best_indv):
     """ Given a list of best individuals, evolves them together through combination & mutation to produce a new population of pop_size """
     # We'll use factory.mix(best_indv, ident) for ident in range(pop), with mutation probabilities and crossover probabilities set at init
@@ -58,7 +56,6 @@ class evolutionary_process:
     pickle.dump(self, dump_file)
     dump_file.close()
 
-  @profile
   def read_fitnesses(self):
     """ Goes through all of the {indv_id}.fit in trial/gen/ and reads them into a dict of {indv_id:fit} """
     #fitness_files = glob.glob("trial%d/gen%d/*.fit" % (self.trial_num, self.cur_gen))
@@ -72,12 +69,11 @@ class evolutionary_process:
         fitness_dict.update(json.load(fo))
     return fitness_dict
 
-  @profile
   def get_fitnesses(self, fitness_mode='max speed'):
     """ Goes through every individual in the population and tests their fitness, storing information (i.e. individuals, results) in trial_num/cur_gen """
     # So for every individual in the population, we go through and add the call to Unity to the multiprocessing queue
     print("Generation %d: Evaluating fitnesses" % self.cur_gen)
-    commands = ['python -m memory_profiler dickaround.py %d %d %d %d %d' % (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
+    commands = ['python dickaround.py %d %d %d %d %d' % (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
     unities = multiprocessing.Pool(self.cpus)
     print("finding fitnesses")
     unities.map(os.system, commands)
@@ -86,7 +82,6 @@ class evolutionary_process:
     del unities
     return self.read_fitnesses()
 
-  @profile
   def run(self, n_generations):
     """ Runs the evolutionary procedure for n_generations """
     print("Running for %d generations from generation %d" % (n_generations - self.cur_gen, self.cur_gen))
@@ -102,7 +97,6 @@ class evolutionary_process:
       self.copulate(best_indv)
       self.cur_gen += 1
 
-  @profile
   def start(self, trial_num, n_generations):
     """ Runs through the whole process """
     # Build in ability to recover

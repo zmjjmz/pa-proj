@@ -97,7 +97,6 @@ class CPGFactory:
       rand_n -= 1e-10
     return rand_n
 
-  @profile
   def mix(self, cpgs, ident, method='avg', mutation_prob=0.5, crossover_prob=[0.5, 0.5]):
     """ Takes a list of cpgs (sorted from lowest fitness to highest) and mixes them into one.
     Note that crossover_prob is assumed to be sorted from lowest to highest and must sum to 1 """
