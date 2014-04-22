@@ -1,4 +1,5 @@
 import random
+import time
 import traceback
 import pickle
 import json
@@ -7,6 +8,7 @@ import glob
 import sys
 import math
 import multiprocessing
+import gc
 from cpg import CPGFactory
 
 
@@ -23,6 +25,7 @@ class evolutionary_process:
     self.k = k
     self.pop = {} if pop == None else pop
 
+  @profile
   def generate_pop(self):
     """ Generates pop_size individuals, separate from __init__ to allow 'warm starting' """
     self.pop = {str(i):self.factory.make(i) for i in range(self.pop_size)}
@@ -38,13 +41,14 @@ class evolutionary_process:
     json.dump(indv, output, default=list) # hack to get numpy arrays in there
     output.close()
 
+  @profile
   def copulate(self, best_indv):
     """ Given a list of best individuals, evolves them together through combination & mutation to produce a new population of pop_size """
     # We'll use factory.mix(best_indv, ident) for ident in range(pop), with mutation probabilities and crossover probabilities set at init
     new_pop = {}
     for indv_id in range(self.pop_size):
       new_pop[str(indv_id)] = self.factory.mix(best_indv, indv_id)
-
+    del self.pop
     self.pop = new_pop
 
 
@@ -54,27 +58,35 @@ class evolutionary_process:
     pickle.dump(self, dump_file)
     dump_file.close()
 
+  @profile
   def read_fitnesses(self):
     """ Goes through all of the {indv_id}.fit in trial/gen/ and reads them into a dict of {indv_id:fit} """
     #fitness_files = glob.glob("trial%d/gen%d/*.fit" % (self.trial_num, self.cur_gen))
     # we're going to have all of them in one JSON file for now
-    fitness_dict = dict()
+    fitness_dict = {}
     for i in range(self.cpus):
       fitness_file = "trial%d/gen%d/total%d.fit" % (self.trial_num, self.cur_gen, i)
+      if not os.path.isfile(fitness_file): # in case of recovery scenario
+        continue
       with open(fitness_file, 'r') as fo: # it's good practice to use the with keyword -- it handles closing the file object for you
         fitness_dict.update(json.load(fo))
     return fitness_dict
 
+  @profile
   def get_fitnesses(self, fitness_mode='max speed'):
     """ Goes through every individual in the population and tests their fitness, storing information (i.e. individuals, results) in trial_num/cur_gen """
     # So for every individual in the population, we go through and add the call to Unity to the multiprocessing queue
     print("Generation %d: Evaluating fitnesses" % self.cur_gen)
-    commands = ['python dickaround.py %d %d %d %d %d' % (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
+    commands = ['python -m memory_profiler dickaround.py %d %d %d %d %d' % (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
     unities = multiprocessing.Pool(self.cpus)
+    print("finding fitnesses")
     unities.map(os.system, commands)
-    # Read the fitnesses in once it's all done. Each individual will have their fitness in <ind>.fit, where the individual is stored in <ind>.enc
+    print("done")
+    del commands
+    del unities
     return self.read_fitnesses()
 
+  @profile
   def run(self, n_generations):
     """ Runs the evolutionary procedure for n_generations """
     print("Running for %d generations from generation %d" % (n_generations - self.cur_gen, self.cur_gen))
@@ -83,12 +95,14 @@ class evolutionary_process:
         self.write_individual(indv)
       fitness_dict = self.get_fitnesses()
       best_indv_ids = sorted(fitness_dict.keys(), key=lambda x: -fitness_dict[x])[:self.k]
+      print([fitness_dict[i] for i in best_indv_ids])
       print("Generation %d: Best fitness %d from individual %s" % (self.cur_gen, fitness_dict[best_indv_ids[0]], best_indv_ids[0]))
       best_indv = [self.pop[indv_id] for indv_id in best_indv_ids]
+      del fitness_dict
       self.copulate(best_indv)
       self.cur_gen += 1
 
-
+  @profile
   def start(self, trial_num, n_generations):
     """ Runs through the whole process """
     # Build in ability to recover
@@ -115,7 +129,6 @@ class evolutionary_process:
         best_indv = [self.pop[indv_id] for indv_id in best_indv_ids]
 
         self.copulate(best_indv)
-
         self.cur_gen += 1
         self.run(n_generations)
       else:
@@ -130,11 +143,14 @@ class evolutionary_process:
 
 
 if __name__ == "__main__":
-  cpgfact = CPGFactory(3)
-  # for now we're gonna leave the population at 3
+  trial_num = int(sys.argv[1])
+  generations = int(sys.argv[2])
+  # smaller size for now
+  cpgfact = CPGFactory(10)
+  # for now we're gonna leave the population at 10
   evlvr = evolutionary_process(10, cpgfact)
   # for now we're gonna go with trial set to 1, 10 generations
-  evlvr.start(1, 10)
+  evlvr.start(trial_num, generations)
 
 
 

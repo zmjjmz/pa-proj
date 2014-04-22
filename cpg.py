@@ -45,7 +45,7 @@ class CPGFactory:
 
   def make(self, ident):
     """ Randomly generates the parameters for a CPG """
-    CPG = dict()
+    CPG = {}
     CPG['ident'] = str(ident)
     # will not be updated during simulation
     CPG['w'] = np.random.rand(self.n, self.n) # (n,n)
@@ -97,6 +97,7 @@ class CPGFactory:
       rand_n -= 1e-10
     return rand_n
 
+  @profile
   def mix(self, cpgs, ident, method='avg', mutation_prob=0.5, crossover_prob=[0.5, 0.5]):
     """ Takes a list of cpgs (sorted from lowest fitness to highest) and mixes them into one.
     Note that crossover_prob is assumed to be sorted from lowest to highest and must sum to 1 """
@@ -109,7 +110,7 @@ class CPGFactory:
     n_cpgs = float(len(cpgs))
 
 
-    new_CPG = dict()
+    new_CPG = {}
     new_CPG['ident'] = str(ident)
     new_CPG = self._set_constants(new_CPG)
 
