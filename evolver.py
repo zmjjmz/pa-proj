@@ -140,7 +140,7 @@ if __name__ == "__main__":
   trial_num = int(sys.argv[1])
   generations = int(sys.argv[2])
   # smaller size for now
-  cpgfact = CPGFactory(10)
+  cpgfact = CPGFactory(20)
   # for now we're gonna leave the population at 10
   evlvr = evolutionary_process(10, cpgfact)
   # for now we're gonna go with trial set to 1, 10 generations
