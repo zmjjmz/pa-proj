@@ -20,8 +20,7 @@ public class CentralControl : MonoBehaviour {
     private float[] cv0, cv1, cR0, cR1;
     // ( (dbody_low, dbody_high), (dlimb_low, dlimb_high) )
     private int[,] d_params;
-    
-    // Probably don't even need a constructor with json deserialization?
+
     public CPG(int n, float[] a, float[] theta, float[] ampl, float[] ampl_dot, 
                int[] osc_class, float[,] w, float[,] phi, float[] gsl, 
                float[] gsh, float[] gb1, float[] gb2){
@@ -79,7 +78,7 @@ public class CentralControl : MonoBehaviour {
       float[] ampl_dot_dot = new float[n];
       float[] new_ampl_dot = new float[n];
       for(int i = 0; i < n; i++){
-        ampl_dot_dot[i] = a[i] * (a[i]/4.0f * (R[i] - ampl[i] - ampl_dot[i]));
+        ampl_dot_dot[i] = a[i] * (a[i]/4.0f * (R[i] - ampl[i]) - ampl_dot[i]);
         new_ampl_dot[i] = ampl_dot[i] + ampl_dot_dot[i];
       }
       return new_ampl_dot;
@@ -135,7 +134,7 @@ public class CentralControl : MonoBehaviour {
   public int trial, gen, firstIndv, lastIndv, partition;
   // We need this to be preserved through level loads, so static
   public static int currentIndv;
-  // Length of trial in number of timesteps (.2s)
+  // Length of trial in number of timesteps (.02s)
   public int currentStep, simulationLength;
   public float fitness;
   public static Dictionary<int, float> fitnesses;
@@ -147,23 +146,25 @@ public class CentralControl : MonoBehaviour {
 
   // Initialization of variables, should be called every time the level is loaded (i.e. resetting), I hope
   void Start () {
+    // Gotta go fast
+    Time.timeScale = 3.0f;
     // Application.persistentDataPath is a folder that should be used to store 
     // things (individuals!)
     // System.Environment.GetCommandLineArgs() is how we're getting args
     /*Debug.Log(Application.persistentDataPath);
-    string[] args = System.Environment.GetCommandLineArgs();
-    for(int i = 0; i < args.Length; i++){
+	  string[] args = System.Environment.GetCommandLineArgs();
+	  for(int i = 0; i < args.Length; i++){
       Debug.Log(args[i]);
-    }*/
+	  }*/
     // We would normally read these values in from command line argmuents
     trial = 0;
     gen = 0;
     firstIndv = 0;
-    lastIndv = 1;
+    lastIndv = 0;
     partition = 0;
     currentIndv = firstIndv;
     currentStep = 0;
-    simulationLength = 200;
+    simulationLength = 500;
     fitnesses = new Dictionary<int, float>();
     initialPosition = transform.position;
     // Initialize the simulation
@@ -204,10 +205,13 @@ public class CentralControl : MonoBehaviour {
     }
   }
 
-  // This function is called every .2 seconds of simulation, and is where motor 
+  // This function is called every .02 seconds of simulation, and is where motor 
   // changes will happen
   void FixedUpdate(){
     ++currentStep;
+	if(currentStep == simulationLength){
+	  endTrial();
+	}
     float stepTime = Time.deltaTime;
     float desiredAngle;
     float alpha = 0.5f;
@@ -232,16 +236,13 @@ public class CentralControl : MonoBehaviour {
       m.targetVelocity = (desiredAngle - joints[i].angle) / stepTime;
       joints[i].motor = m;
     }
-    if(currentStep == simulationLength){
-      endTrial();
-    }
+
   }
 
   void beginTrial(){
-    string path = System.Environment.GetEnvironmentVariable("foo");
-    path += "trial" + trial + Path.DirectorySeparatorChar + "gen" + gen 
+    string path = System.Environment.GetEnvironmentVariable("GEN_HOME");
+    path += Path.DirectorySeparatorChar + "trial" + trial + Path.DirectorySeparatorChar + "gen" + gen 
       + Path.DirectorySeparatorChar + "indv_" + currentIndv + ".enc";
-    Debug.Log (path);
     salamander = JsonConvert.DeserializeObject<CPG>(File.ReadAllText(path));
   }
 
@@ -250,15 +251,15 @@ public class CentralControl : MonoBehaviour {
     fitnesses[currentIndv] = fitness;
     // Conclude business by writing the fitnesses to json
     if(currentIndv == lastIndv){
-      string path = System.Environment.GetEnvironmentVariable("foo");
-      path += "trial" + trial + Path.DirectorySeparatorChar + "gen" + gen 
+      string path = System.Environment.GetEnvironmentVariable("GEN_HOME");
+      path += Path.DirectorySeparatorChar + "trial" + trial + Path.DirectorySeparatorChar + "gen" + gen 
         + Path.DirectorySeparatorChar + "partition" + partition + ".fit";
       string json = JsonConvert.SerializeObject(fitnesses, Formatting.Indented);
       File.WriteAllText(path, json);
       Application.Quit();
     }
-    currentIndv++;
     // Otherwise, have another go with the next individual
+    currentIndv++;
     Application.LoadLevel(Application.loadedLevel);
   }
 }
