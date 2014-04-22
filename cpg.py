@@ -19,8 +19,8 @@ class CPGFactory:
     # list of keys that can be mutated during evolution
     self.evolvables = ['w', 'phi', 'a', 'gsl', 'gsh', 'gb1', 'gb2', 'theta', 'ampl', 'ampl_dot']
     self.scalars = set(['gsl', 'gsh', 'gb1', 'gb2'])
-    self.shapes = {'w':(n,n),
-        'phi':(n,n),
+    self.shapes = {'w':n*n,
+        'phi':n*n,
         'a':n,
         'theta':n,
         'ampl':n,
@@ -48,8 +48,8 @@ class CPGFactory:
     CPG = {}
     CPG['ident'] = str(ident)
     # will not be updated during simulation
-    CPG['w'] = np.random.rand(self.n, self.n) # (n,n)
-    CPG['phi'] = np.random.rand(self.n, self.n) # (n,n)
+    CPG['w'] = np.random.rand(self.n * self.n) # (n * n)
+    CPG['phi'] = np.random.rand(self.n * self.n) # (n * n)
     CPG['a'] = np.random.rand(self.n) # (n)
     CPG['gsl'] = np.random.rand() # scalar
     CPG['gsh'] = np.random.rand() # scalar
