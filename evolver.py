@@ -14,8 +14,11 @@ from cpg import CPGFactory
 
 # This runs continuously, controlling the whole evolutionary process
 class evolutionary_process:
-  def __init__(self, pop_size, factory, pop=None, k=2, mutation_prob=0.5, crossover_prob=[0.5,0.5]):
+  def __init__(self, pop_size, factory, pop=None, k=2, mutation_prob=0.5, crossover_prob=[0.5,0.5], crossover_method='avg'):
     """ Takes population size, number of generations, and a function to generate individuals """
+    self.mutation_prob = mutation_prob
+    self.crossover_prob = crossover_prob
+    self.crossover_method = crossover_method
     self.factory = factory # used to make the individuals randomly
     self.pop_size = pop_size
     self.cpus = multiprocessing.cpu_count()
@@ -45,7 +48,7 @@ class evolutionary_process:
     # We'll use factory.mix(best_indv, ident) for ident in range(pop), with mutation probabilities and crossover probabilities set at init
     new_pop = {}
     for indv_id in range(self.pop_size):
-      new_pop[str(indv_id)] = self.factory.mix(best_indv, indv_id)
+      new_pop[str(indv_id)] = self.factory.mix(best_indv, indv_id, mutation_prob=self.mutation_prob, crossover_prob=self.crossover_prob, method=self.crossover_method)
     del self.pop
     self.pop = new_pop
 
@@ -73,13 +76,12 @@ class evolutionary_process:
     """ Goes through every individual in the population and tests their fitness, storing information (i.e. individuals, results) in trial_num/cur_gen """
     # So for every individual in the population, we go through and add the call to Unity to the multiprocessing queue
     print("Generation %d: Evaluating fitnesses" % self.cur_gen)
-    commands = ['./Unity/Binaries/distanceEvolver.x86_64 -batchmode %d %d %d %d %d' % (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
+    commands = ['./Unity/Binaries/distanceEvolver.x86_64 -batchmode %d %d %d %d %d > /dev/null' % (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
     unities = multiprocessing.Pool(self.cpus)
     print("finding fitnesses")
     unities.map(os.system, commands)
     print("done")
-    del commands
-    del unities
+    unities.close()
     return self.read_fitnesses()
 
   def run(self, n_generations):
@@ -91,7 +93,7 @@ class evolutionary_process:
       fitness_dict = self.get_fitnesses()
       best_indv_ids = sorted(fitness_dict.keys(), key=lambda x: -fitness_dict[x])[:self.k]
       print([fitness_dict[i] for i in best_indv_ids])
-      print("Generation %d: Best fitness %d from individual %s" % (self.cur_gen, fitness_dict[best_indv_ids[0]], best_indv_ids[0]))
+      print("Generation %d: Best fitness %0.3f from individual %s" % (self.cur_gen, fitness_dict[best_indv_ids[0]], best_indv_ids[0]))
       best_indv = [self.pop[indv_id] for indv_id in best_indv_ids]
       del fitness_dict
       self.copulate(best_indv)
@@ -142,7 +144,7 @@ if __name__ == "__main__":
   # smaller size for now
   cpgfact = CPGFactory(20)
   # for now we're gonna leave the population at 10
-  evlvr = evolutionary_process(10, cpgfact)
+  evlvr = evolutionary_process(20, cpgfact, crossover_method='crossover', crossover_prob=[0.1,0.3,0.6], k=3, mutation_prob=0.3)
   # for now we're gonna go with trial set to 1, 10 generations
   evlvr.start(trial_num, generations)
 
