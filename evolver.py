@@ -73,7 +73,7 @@ class evolutionary_process:
     """ Goes through every individual in the population and tests their fitness, storing information (i.e. individuals, results) in trial_num/cur_gen """
     # So for every individual in the population, we go through and add the call to Unity to the multiprocessing queue
     print("Generation %d: Evaluating fitnesses" % self.cur_gen)
-    commands = ['./distanceEvolver.x86_64 -batchmode %d %d %d %d %d' % (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
+    commands = ['./Unity/Binaries/distanceEvolver.x86_64 -batchmode %d %d %d %d %d' % (self.trial_num, self.cur_gen, self.proc_bounds[cpu][0], self.proc_bounds[cpu][1], cpu) for cpu in range(self.cpus)]
     unities = multiprocessing.Pool(self.cpus)
     print("finding fitnesses")
     unities.map(os.system, commands)
