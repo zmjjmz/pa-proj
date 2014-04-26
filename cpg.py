@@ -19,6 +19,7 @@ class CPGFactory:
     # list of keys that can be mutated during evolution
     self.evolvables = ['w', 'phi', 'a', 'gsl', 'gsh', 'gb1', 'gb2', 'theta', 'ampl', 'ampl_dot']
     self.scalars = set(['gsl', 'gsh', 'gb1', 'gb2'])
+    self.nonzeros = set([int(i) for i in "8 160 29 181 50 202 71 223 92 244 113 265 134 286 155 307 1 20 22 41 43 62 64 83 85 104 106 125 127 146 169 188 190 209 211 230 232 251 253 272 274 293 295 314 320 321 322 323 364 365 366 367 348 349 350 351 392 393 394 395 338 376 337 356 359 397 379 398".split(" ")])
     self.shapes = {'w':n*n,
         'phi':n*n,
         'a':n,
@@ -43,12 +44,15 @@ class CPGFactory:
 
 
 
-  def make(self, ident):
+  def make(self, ident, factor):
     """ Randomly generates the parameters for a CPG """
     CPG = {}
     CPG['ident'] = str(ident)
     # will not be updated during simulation
-    CPG['w'] = np.random.rand(self.n * self.n) # (n * n)
+    CPG['w'] = np.random.rand(self.n * self.n) * factor # (n * n)
+    for ind in range(self.n*self.n):
+      if ind not in self.nonzeros:
+        CPG['w'][ind] = 0
     CPG['phi'] = np.random.rand(self.n * self.n) # (n * n)
     CPG['a'] = np.random.rand(self.n) # (n)
     CPG['gsl'] = np.random.rand() # scalar
@@ -80,7 +84,7 @@ class CPGFactory:
 
     return CPG
 
-  def cumulative_sum(lis):
+  def cumulative_sum(self, lis):
     """ Because you can't refer to the current list in a list comprehension """
     new_list = []
     for i in range(len(lis)):
@@ -90,7 +94,7 @@ class CPGFactory:
         new_list.append(new_list[i-1] + lis[i])
     return new_list
 
-  def safe_rand():
+  def safe_rand(self):
     """ Gets a random number, but makes sure it's not 1 """
     rand_n = np.random.rand()
     if rand_n == float(1):
@@ -122,21 +126,21 @@ class CPGFactory:
       # assume the current crossover_prob apply to cpgs[:len(crossover_prob)]
       # anything past that can be thrown out
       cpgs = cpgs[len(cpgs) - len(crossover_prob):]
-      cdf = cumulative_sum(crossover_prob)
+      cdf = self.cumulative_sum(crossover_prob)
       choose_cpg = lambda rand: cpgs[bisect.bisect(cdf, rand)] # bisect will return the index of the value to the right of the given number in the sorted list
       # Now go through the keys
       for key in self.evolvables:
         if key in self.scalars:
           # then we'll just choose the cpg
-          new_CPG[key] = choose_cpg(safe_rand())[key]
+          new_CPG[key] = choose_cpg(self.safe_rand())[key]
         else:
           new_CPG[key] = np.zeros(self.shapes[key])
           for param in range(self.sizes[key]):
             # Since CPGs that are read in don't have their lists in numpy.ndarray form
-            this_cpg = choose_cpg(safe_rand())
+            this_cpg = choose_cpg(self.safe_rand())
             if not isinstance(this_cpg[key], np.ndarray):
               this_cpg[key] = np.array(this_cpg[key])
-            new_CPG[key].flat[param] = choose_cpg(safe_rand())[key].flat[param]
+            new_CPG[key].flat[param] = choose_cpg(self.safe_rand())[key].flat[param]
 
     # mutate step
     for key in self.evolvables:
@@ -146,7 +150,12 @@ class CPGFactory:
       else:
         for param in range(self.sizes[key]):
           if np.random.rand() <= mutation_prob:
-            new_CPG[key].flat[param] = new_CPG[key].flat[param] * np.random.rand()
+            new_CPG[key].flat[param] = new_CPG[key].flat[param] * (0.5 + np.random.rand())
+    # Ok so this is inefficient but fuck it, anyways certain indices need to be zero to prevent seizureific movement
+    for ind in range(self.n*self.n):
+      if ind not in self.nonzeros:
+        new_CPG['w'][ind] = 0
+
     # That's all folks!
     return new_CPG
 

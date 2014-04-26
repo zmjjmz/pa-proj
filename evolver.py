@@ -1,4 +1,5 @@
 import random
+import numpy as np
 import time
 import traceback
 import pickle
@@ -27,10 +28,11 @@ class evolutionary_process:
     self.cur_gen = 0
     self.k = k
     self.pop = {} if pop == None else pop
+    self.log = []
 
   def generate_pop(self):
     """ Generates pop_size individuals, separate from __init__ to allow 'warm starting' """
-    self.pop = {str(i):self.factory.make(i) for i in range(self.pop_size)}
+    self.pop = {str(i):self.factory.make(i, 10) for i in range(self.pop_size)}
 
   def write_individual(self, indv):
     """ Writes the information for an individual to a file indv_id.enc """
@@ -84,20 +86,29 @@ class evolutionary_process:
     unities.close()
     return self.read_fitnesses()
 
+  def write_log(self):
+    """ Writes a CSV containing the top-k fitnesses for each generation """
+    self.log = np.array(self.log)
+    np.savetxt("trial%d/fitlog.csv" % self.trial_num, self.log)
+
   def run(self, n_generations):
     """ Runs the evolutionary procedure for n_generations """
-    print("Running for %d generations from generation %d" % (n_generations - self.cur_gen, self.cur_gen))
+    torun = n_generations - self.cur_gen
+    print("Running for %d generations from generation %d" % (torun, self.cur_gen))
+    tic = time.time()
     while(self.cur_gen < n_generations):
       for indv in self.pop.values():
         self.write_individual(indv)
       fitness_dict = self.get_fitnesses()
       best_indv_ids = sorted(fitness_dict.keys(), key=lambda x: -fitness_dict[x])[:self.k]
-      print([fitness_dict[i] for i in best_indv_ids])
+      self.log.append([fitness_dict[i] for i in best_indv_ids])
       print("Generation %d: Best fitness %0.3f from individual %s" % (self.cur_gen, fitness_dict[best_indv_ids[0]], best_indv_ids[0]))
       best_indv = [self.pop[indv_id] for indv_id in best_indv_ids]
       del fitness_dict
       self.copulate(best_indv)
       self.cur_gen += 1
+    toc = time.time() - tic
+    print("Took %0.3f seconds to run %d generations" % (toc, torun))
 
   def start(self, trial_num, n_generations):
     """ Runs through the whole process """
@@ -132,6 +143,7 @@ class evolutionary_process:
         self.generate_pop()
         self.cur_gen = 0
         self.run(n_generations)
+      self.write_log()
     except:
       error = traceback.format_exc()
       print("Trial %d: Caught error %s on generation %d, dumping to %s/trial%d/dump.pickle" % (self.trial_num, error, self.cur_gen, os.path.abspath('.'), self.trial_num))
@@ -144,7 +156,7 @@ if __name__ == "__main__":
   # smaller size for now
   cpgfact = CPGFactory(20)
   # for now we're gonna leave the population at 10
-  evlvr = evolutionary_process(20, cpgfact, crossover_method='crossover', crossover_prob=[0.1,0.3,0.6], k=3, mutation_prob=0.3)
+  evlvr = evolutionary_process(10, cpgfact, crossover_method='crossover', crossover_prob=[0.5,0.5], k=2, mutation_prob=0.5)
   # for now we're gonna go with trial set to 1, 10 generations
   evlvr.start(trial_num, generations)
 
